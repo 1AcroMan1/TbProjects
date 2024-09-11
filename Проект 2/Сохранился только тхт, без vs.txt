@@ -1,0 +1,746 @@
+using SevPractice;
+using System.Globalization;
+
+//CREATE DATABASE SevguPracrice
+namespace SevPractice
+{
+
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            StorableInfo st = new StorableInfo();
+            st.GenerateAllValuesForDB();
+            Stats stats = GlobalSave.LoadStats();
+            MoneyHolder moneyHolder = new MoneyHolder();
+            moneyHolder.exp = 10000;
+            stats.InitializeFalseUpgrade(moneyHolder);
+            Console.WriteLine($"{stats.Strength}, {moneyHolder.exp}");
+            stats.Upgrade("Strength", moneyHolder);
+            stats.Upgrade("Strength", moneyHolder);
+            stats.Upgrade("Strength", moneyHolder);
+            Console.WriteLine($"{stats.Strength}, {moneyHolder.exp}");
+            stats.AcceptOrDenyFalseUpgrade(false, moneyHolder);
+            Console.WriteLine($"{stats.Strength}, {moneyHolder.exp}");
+            stats.Upgrade("Strength", moneyHolder);
+            stats.Upgrade("Strength", moneyHolder);
+            stats.Upgrade("Strength", moneyHolder);
+            stats.AcceptOrDenyFalseUpgrade(true, moneyHolder);
+            Console.WriteLine($"{stats.Strength}, {moneyHolder.exp}");
+
+            Position pos = GlobalSave.LoadPosition();
+            Inventory inv = GlobalSave.LoadInventory();
+            Console.WriteLine(inv.itemIds[0]);
+            inv.ChangeSlot(0, 3, 1, 64);
+            Console.WriteLine(inv.isEquiped[0]);
+            inv.ChangeSlot(1, 5, 0, 1);
+            inv.ChangeEquiped(1, 0);
+            Console.WriteLine(inv.isEquiped[0]);
+            Console.WriteLine(inv.isEquiped[1]);
+            Console.WriteLine($"mh money: {moneyHolder.money}");
+            inv.SellToShop(0, 64, moneyHolder);
+            Console.WriteLine($"mh money: {moneyHolder.money}");
+            GlobalSave.Save(pos, inv);
+
+
+            //Test t = new Test();
+            //t.test();
+        }
+    }
+    //class Test
+    //{
+    //    public void test()
+    //    {
+    //        List<float> value = new List<float>();
+    //        for (int i = 0; i < 50; i++)
+    //        {
+    //            if (i == 0)
+    //            {
+    //                value.Add(100);
+    //            }
+    //            else
+    //            {
+    //                value.Add(value[i - 1] + (100 - (i*100 / 80)));
+    //                Console.WriteLine($"{ value[i]}, lvl: {i}");
+    //            }
+    //        }
+    //    }
+    //}
+    class MoneyHolder
+    {
+        public float exp { get; set; }
+        public float money { get; private set; }
+        private float recognizedExp;
+        public void DecreaseMoney(float cost)
+        {
+            if (exp >= 0)
+            {
+                exp -= cost;
+            }
+        }
+        public void RecognizeAndReturn(bool RecOrRet)
+        {
+            if (RecOrRet)
+            {
+                exp = recognizedExp;
+                recognizedExp = 0;
+            }
+            else
+            {
+                recognizedExp = exp;
+            }
+        }
+        public void IncreaseMoney(float increase)
+        {
+            money += increase;
+        }
+    }
+    class Stats
+    {
+        public float Lvl { get; private set; }
+        public float Strength { get; private set; }
+        public float MaxHp { get; private set; }
+        public float MaxStamina { get; private set; }
+        public float MaxMana { get; private set; }
+        public float CritChance { get; private set; }
+        public float CritDamage { get; private set; }
+        public float Speed { get; private set; }
+        public float Intellegence { get; private set; }
+        public float Haste { get; private set; }
+        private List<float> RecognizedStats = new List<float>();
+        //2 этап - вызов всех улучшений по клику по кнопке
+        public void Upgrade(string skillName, MoneyHolder mh)
+        {
+            GetValuesFromDB db = new GetValuesFromDB();
+            UpgradeStat us = new UpgradeStat();
+            us.Upgrade(skillName, db.DbGetCurrentStatValue(skillName), mh, db, Lvl);
+            UpdateStats();
+        }
+        private void RecognizeAndReturn(bool RecOrRet)
+        {
+            if (RecOrRet)
+            {
+                List<string> str = new List<string>() { "Strength", "MaxHp", "MaxStamina", "MaxMana", "CritChance", "CritDamage", "Speed", "Intellegence", "Haste", "Lvl" };
+                GetValuesFromDB db = new GetValuesFromDB();
+                for (int i = 0; i < RecognizedStats.Count; i++)
+                {
+                    db.DbSetStats(str[i], RecognizedStats[i]);
+                }
+            }
+            else
+            {
+                RecognizedStats = new List<float>() { Strength, MaxHp, MaxStamina, MaxMana, CritChance, CritDamage, Speed, Intellegence, Haste, Lvl };
+            }
+        }
+        //1 этап - вызов этой штуки при начале улучшения
+        public void InitializeFalseUpgrade(MoneyHolder mh)
+        {
+            mh.RecognizeAndReturn(false);
+            RecognizeAndReturn(false);
+        }
+        //3 этап - вызов этой штуки при клике на кнопку подтвердить или отклонить улучшение. bool accepted - true, если пользователь согласен на улучшение
+        public void AcceptOrDenyFalseUpgrade(bool accepted, MoneyHolder mh)
+        {
+            if (!accepted)
+            {
+                mh.RecognizeAndReturn(true);
+                RecognizeAndReturn(true);
+                UpdateStats();
+            }
+        }
+        public void UpdateStats()
+        {
+            try
+            {
+                GetValuesFromDB db = new GetValuesFromDB();
+                Dictionary<string, float> dic = db.DbGetHeroStats();
+                Strength = dic["Strength"];
+                MaxHp = dic["MaxHp"];
+                MaxStamina = dic["MaxStamina"];
+                MaxMana = dic["MaxMana"];
+                CritChance = dic["CritChance"];
+                CritDamage = dic["CritDamage"];
+                Speed = dic["Speed"];
+                Intellegence = dic["Intellegence"];
+                Haste = dic["Haste"];
+                //Добавил лвл
+                Lvl = dic["Lvl"];
+                Console.WriteLine("Table cur is fine");
+            }
+            catch
+            {
+                try
+                {
+                    DbHelper.ExecuteWithoutAnswer("DROP TABLE HeroCurrentStats");
+                    Console.WriteLine("Table cur deleted");
+                }
+                catch { }//Таблицы не существует, нечего удалять и делать в кэтче нечего тоже
+                Console.WriteLine("Table cur not exist");
+                DbHelper.ExecuteWithoutAnswer("CREATE TABLE HeroCurrentStats (skillName VARCHAR(128), skillLvl int, statvalue float) ");
+                List<string> skillNames = new List<string>() { "Strength", "MaxHp", "MaxStamina", "MaxMana", "CritChance", "CritDamage", "Speed", "Intellegence", "Haste"};
+                for(int i = 0;i<skillNames.Count;i++)
+                {
+                    string val = float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT statvalue FROM HeroStats WHERE skillLvl = 0 AND skillName = '{skillNames[i]}'")).ToString(CultureInfo.InvariantCulture);
+                    DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroCurrentStats VALUES('{skillNames[i]}', 0, {val})");
+                }
+                DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroCurrentStats VALUES({"'Lvl'"}, 0, 0)");
+            }
+        }
+    }
+
+    class GetValuesFromDB
+    {
+        public float DbGetCost(float lvl)
+        {
+            float cost = float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"UpgradeCost"} FROM {"HeroLvl"} WHERE {"Lvl"} = {lvl + 1}"));
+            return cost;
+        }
+        private void DbSetStats(string skillName, int lvl, float HeroLvl, float value)
+        {
+            DbHelper.ExecuteWithoutAnswer($"UPDATE {"HeroCurrentStats"} SET {"skillLvl"} = {lvl}, {"statvalue"} = {value.ToString(CultureInfo.InvariantCulture)} WHERE {"skillName"} = '{skillName}'");
+            DbHelper.ExecuteWithoutAnswer($"UPDATE {"HeroCurrentStats"} SET {"skillLvl"} = {HeroLvl.ToString(CultureInfo.InvariantCulture)}, {"statvalue"} = {HeroLvl.ToString(CultureInfo.InvariantCulture)} WHERE {"skillName"} = '{"Lvl"}'");
+        }
+        public void DbSetStats(string skillName, float value)
+        {
+            if (skillName == "Lvl")
+            {
+                DbHelper.ExecuteWithoutAnswer($"UPDATE {"HeroCurrentStats"} SET {"skillLvl"} = {value.ToString(CultureInfo.InvariantCulture)}, {"statvalue"} = {value.ToString(CultureInfo.InvariantCulture)} WHERE {"skillName"} = '{skillName}'");
+            }
+            else
+            {
+                int lvl = int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"skillLvl"} FROM {"HeroStats"} WHERE {"skillName"} = '{skillName}' AND {"statvalue"} = {value.ToString(CultureInfo.InvariantCulture)}"));
+                DbHelper.ExecuteWithoutAnswer($"UPDATE {"HeroCurrentStats"} SET {"skillLvl"} = {lvl}, {"statvalue"} = {value.ToString(CultureInfo.InvariantCulture)} WHERE {"skillName"} = '{skillName}'");
+            }
+        }
+        public float DbGetNextStatValue(string skillName, float statValue, float HeroLvl)
+        {
+            int lvl = int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"skillLvl"} FROM {"HeroStats"} WHERE {"skillName"} = '{skillName}' AND {"statvalue"} = {statValue.ToString(CultureInfo.InvariantCulture)}"));
+            float nextval = float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"statvalue"} FROM {"HeroStats"} WHERE {"skillName"} = '{skillName}' AND {"skillLvl"} = {lvl + 1}"));
+            DbSetStats(skillName, lvl + 1, HeroLvl + 1, nextval);
+            return nextval;
+        }
+        public float DbGetCurrentStatValue(string skillName)
+        {
+            return float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"statvalue"} FROM {"HeroCurrentStats"} WHERE {"skillName"} = '{skillName}'"));
+        }
+        public Dictionary<string, float> DbGetHeroStats()
+        {
+            Dictionary<string, float> dict = new Dictionary<string, float>();
+            List<string> skillNames = new List<string>() { "Strength", "MaxHp", "MaxStamina", "MaxMana", "CritChance", "CritDamage", "Speed", "Intellegence", "Haste", "Lvl" };
+            for (int i = 0; i < skillNames.Count; i++)
+            {
+                dict.Add($"{skillNames[i]}", float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT {"statvalue"} FROM {"HeroCurrentStats"} WHERE {"skillName"} = '{skillNames[i]}'")));
+            }
+            return dict;
+        }
+    }
+    class UpgradeStat
+    {
+        public void Upgrade(string skillName, float statValue, MoneyHolder mh, GetValuesFromDB db, float lvl)
+        {
+            float cost = float.MaxValue;
+            try
+            {
+                cost = db.DbGetCost(lvl);
+            }
+            catch { }
+            if (mh.exp >= cost)
+            {
+                try
+                {
+                    statValue = db.DbGetNextStatValue(skillName, statValue, lvl);
+                    mh.DecreaseMoney(cost);
+                    //Console.WriteLine("upgrade sucssessfull");
+                }
+                catch
+                {
+                    //Debug.Log("MaxLvlReached");
+                }
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SevPractice
+{
+    public static class DbHelper
+    {
+        private static string connection = GetConnectionString();
+        static private string GetConnectionString()
+        {
+            return @"Data Source=DESKTOP-9T0H6F4\SQLEXPRESS;Initial Catalog=SevguPractice;Integrated Security=True;Encrypt=True;TrustServerCertificate=True";
+        }
+        public static void ExecuteWithoutAnswer(string str)
+        {
+            using (SqlConnection conn = new SqlConnection(connection))
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand(str, conn);
+                try
+                {
+                    cmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+                conn.Close();
+            }
+        }
+        public static List<string> ExecuteWithAnswer(string str)
+        {
+            using (SqlConnection conn = new SqlConnection(connection))
+            {
+                conn.Open();
+                List<string> result = new List<string>();
+                conn.Close();
+                return result;
+            }
+        }
+        public static string ExecuteQueryWithAnswer(string query)
+        {
+            using (SqlConnection conn = new SqlConnection(connection))
+            {
+                conn.Open();
+                SqlCommand cmd = new SqlCommand(query, conn);
+                var answer = cmd.ExecuteScalar();
+                conn.Close();
+
+                if (answer != null) return answer.ToString();
+                else return null;
+            }
+        }
+    }
+
+}
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SevPractice
+{
+    static class GlobalSave
+    {
+        public static void Save(Position pos, Inventory inv)
+        {
+            //статы сохраняются сами по себе
+            pos.Save();
+            inv.Save();
+        }
+        public static Stats LoadStats()
+        {
+            Stats st = new Stats();
+            st.UpdateStats();
+            return st;
+        }
+        public static Position LoadPosition()
+        {
+            Position pos = new Position();
+            pos.Load();
+            return pos;
+        }
+        public static Inventory LoadInventory()
+        {
+            Inventory inv = new Inventory();
+            inv.Load();
+            return inv;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SevPractice
+{
+    class Inventory
+    {
+        public List<int> slotIds { get; private set; }
+        public List<int> itemIds { get; private set; }
+        public List<int> isEquiped { get; private set; }
+        public List<int> itemsAmmount { get; private set; }
+        private int baseSpace = 35;
+        public void Save()
+        {
+            InventoryDb.Save(slotIds, itemIds, isEquiped, itemsAmmount);
+        }
+        public void Load()
+        {
+            List<List<int>> list = InventoryDb.Load(baseSpace);
+            slotIds = list[0];
+            itemIds = list[1];
+            isEquiped = list[2];
+            itemsAmmount = list[3];
+        }
+        public void LoadSlot(int slotId)
+        {
+            List<int> list = InventoryDb.LoadSlot(slotId);
+            slotIds[slotId] = list[0];
+            itemIds[slotId] = list[1];
+            isEquiped[slotId] = list[2];
+            itemsAmmount[slotId] = list[3];
+        }
+        public void ChangeEquiped(int slotId, int prevSlot)
+        {
+            InventoryDb.ChangeEquiped(slotId, prevSlot);
+            LoadSlot(slotId);
+            LoadSlot(prevSlot);
+        }
+        public void ChangeSlot(int slotId, int itemId, int isEquiped, int itemsAmmount)
+        {
+            InventoryDb.ChangeSlot(slotId, itemId, isEquiped, itemsAmmount);
+            LoadSlot(slotId);
+        }
+        public void SellToShop(int slotIds, int itemsAmmounts, MoneyHolder mh)
+        {
+            PricesDb prices = new PricesDb();
+            if (itemsAmmount[slotIds] >= itemsAmmounts)
+            {
+                if(itemsAmmount[slotIds] - itemsAmmounts ==0)
+                {
+                    itemIds[slotIds] = 0;
+                }
+                ChangeSlot(slotIds, itemIds[slotIds], isEquiped[slotIds], itemsAmmount[slotIds]-itemsAmmounts);
+                mh.IncreaseMoney(itemsAmmounts * prices.prices[itemIds[slotIds]]);
+            }
+        }
+    }
+    public class PricesDb
+    {
+        public List<float> prices { get; private set; }
+        public void NextIdPrice(float price)
+        {
+            prices.Add(price);
+        }
+        public PricesDb()
+        {
+            prices = new List<float>();
+            for (int i = 0; i < 50; i++)
+            {
+                NextIdPrice(1);
+            }
+        }
+    }
+    public static class InventoryDb
+    {
+        public static void Save(List<int> slotIds, List<int> itemIds, List<int> isEquiped, List<int> itemsAmmount)
+        {
+            if (CheckOnExist())
+            {
+                for (int i = 0; i < slotIds.Count; i++)
+                {
+                    DbHelper.ExecuteWithoutAnswer($"UPDATE Inventory SET ItemId = {itemIds[i]}, IsEquiped = {isEquiped[i]}, ItemsAmmount = {itemsAmmount[i]} WHERE SlotId = {slotIds[i]}");
+                }
+            }
+            else
+            {
+                ReGenerate(slotIds.Count);
+            }
+        }
+        public static List<List<int>> Load(int baseSpace)
+        {
+            if (CheckOnExist())
+            {
+                List<int> slotIds = new List<int>();
+                List<int> itemIds = new List<int>();
+                List<int> isEquiped = new List<int>();
+                List<int> itemsAmmount = new List<int>();
+                for (int i = 0; i < baseSpace; i++)
+                {
+                    slotIds.Add(i);
+                    itemIds.Add(int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT ItemId FROM Inventory WHERE SlotId = {i}")));
+                    string str = DbHelper.ExecuteQueryWithAnswer($"SELECT IsEquiped FROM Inventory WHERE SlotId = {i}");
+                    if(str == "true" || str == "True")
+                    {
+                        isEquiped.Add(1);
+                    }
+                    else
+                    {
+                        isEquiped.Add(0);
+                    }
+                    itemsAmmount.Add(int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT ItemsAmmount FROM Inventory WHERE SlotId = {i}")));
+                }
+                return new List<List<int>>() { slotIds, itemIds, isEquiped, itemsAmmount };
+            }
+            else
+            {
+                ReGenerate(baseSpace);
+                return Load(baseSpace);
+            }
+        }
+        public static List<int> LoadSlot(int slotId)
+        {
+            int isEquiped = 0;
+            string str = DbHelper.ExecuteQueryWithAnswer($"SELECT IsEquiped FROM Inventory WHERE SlotId = {slotId}");
+            if (str == "true" || str == "True")
+            {
+                isEquiped = 1;
+            }
+            else
+            {
+                isEquiped = 0;
+            }
+            List<int> list =
+            [
+            slotId,
+            int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT ItemId FROM Inventory WHERE SlotId = {slotId}")),
+            isEquiped,
+            int.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT ItemsAmmount FROM Inventory WHERE SlotId = {slotId}")),
+            ];
+            return list;
+        }
+        public static bool CheckOnExist()
+        {
+            try
+            {
+                string ch = DbHelper.ExecuteQueryWithAnswer($"SELECT ItemId FROM Inventory WHERE SlotId = 0");
+                return ch != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public static void ReGenerate(int space)
+        {
+            try
+            {
+                DbHelper.ExecuteWithoutAnswer("DROP TABLE Inventory");
+                Console.WriteLine("inv deleted");
+            }
+            catch { }
+            DbHelper.ExecuteWithoutAnswer($"CREATE TABLE Inventory (SlotId int, ItemId int, IsEquiped bit, ItemsAmmount int)");
+            Console.WriteLine("inv created");
+            for (int i = 0; i < space; i++)
+            {
+                DbHelper.ExecuteWithoutAnswer($"INSERT INTO Inventory VALUES({i}, 0, 0, 0)");
+            }
+        }
+        public static void ChangeEquiped(int slotId, int prevSlotId)
+        {
+            DbHelper.ExecuteWithoutAnswer($"UPDATE Inventory SET IsEquiped = 0 WHERE SlotId = {prevSlotId}");
+            DbHelper.ExecuteWithoutAnswer($"UPDATE Inventory SET IsEquiped = 1 WHERE SlotId = {slotId}");
+        }
+        public static void ChangeSlot(int slotId, int itemId, int isEquiped, int itemsAmmount)
+        {
+            DbHelper.ExecuteWithoutAnswer($"UPDATE Inventory SET ItemId = {itemId}, IsEquiped = {isEquiped}, ItemsAmmount = {itemsAmmount} WHERE SlotId = {slotId}");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SevPractice
+{
+    class Position
+    {
+        public float x { get; private set; }
+        public float y { get; private set; }
+        public float z { get; private set; }
+        public void Save()
+        {
+            PositionDb.Save(new List<float>() { x, y, z });
+        }
+        public void Load()
+        {
+            List<float> pos = PositionDb.Load();
+            x = pos[0];
+            y = pos[1];
+            z = pos[2];
+        }
+    }
+    static class PositionDb
+    {
+        public static void Save(List<float> pos)
+        {
+            if (CheckOnExist())
+            {
+                DbHelper.ExecuteWithoutAnswer($"UPDATE Position SET Cords = {pos[0]} WHERE Name = {"'x'"}");
+                DbHelper.ExecuteWithoutAnswer($"UPDATE Position SET Cords = {pos[1]} WHERE Name = {"'y'"}");
+                DbHelper.ExecuteWithoutAnswer($"UPDATE Position SET Cords = {pos[2]} WHERE Name = {"'z'"}");
+            }
+            else
+            {
+                ReGenerate();
+            }
+        }
+        public static List<float> Load()
+        {
+            if (CheckOnExist())
+            {
+                List<float> pos =
+                [
+                    float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT Cords FROM Position WHERE Name = {"'x'"}")),
+                    float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT Cords FROM Position WHERE Name = {"'y'"}")),
+                    float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT Cords FROM Position WHERE Name = {"'z'"}")),
+                ];
+                return pos;
+            }
+            else
+            {
+                ReGenerate();
+                return Load();
+            }
+        }
+        public static bool CheckOnExist()
+        {
+            try
+            {
+                string ch = DbHelper.ExecuteQueryWithAnswer($"SELECT Cords FROM Position WHERE Name = {"'x'"}");
+                return ch != null;
+            }
+            catch 
+            {
+                return false;
+            }
+        }
+        public static void ReGenerate()
+        {
+            try
+            {
+                DbHelper.ExecuteWithoutAnswer("DROP TABLE Position");
+                Console.WriteLine("pos deleted");
+            }
+            catch { }
+            DbHelper.ExecuteWithoutAnswer($"CREATE TABLE Position (Name VARCHAR(16), Cords float)");
+            Console.WriteLine("pos created");
+            DbHelper.ExecuteWithoutAnswer($"INSERT INTO Position VALUES({"'x'"}, 0)");
+            DbHelper.ExecuteWithoutAnswer($"INSERT INTO Position VALUES({"'y'"}, 0)");
+            DbHelper.ExecuteWithoutAnswer($"INSERT INTO Position VALUES({"'z'"}, 0)");
+        }
+    }
+
+}
+
+
+
+
+
+
+
+using SevPractice;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SevPractice
+{
+    class StorableInfo
+    {
+        //Вызывать это для генерации в бд
+        public void GenerateAllValuesForDB()
+        {
+            try
+            {
+                DbHelper.ExecuteWithoutAnswer("DROP TABLE HeroStats");
+            }
+            catch { }
+            try
+            {
+                DbHelper.ExecuteWithoutAnswer("DROP TABLE HeroLvl");
+            }
+            catch { }
+            DbHelper.ExecuteWithoutAnswer("CREATE TABLE HeroStats(skillName VARCHAR (128), skillLvl int, statvalue float)");
+            //Добавил лвл
+            DbHelper.ExecuteWithoutAnswer("CREATE TABLE HeroLvl (Lvl int, UpgradeCost float)");
+            GenerateLvl(200, 10, 100);
+
+            GenerateValuesForDB("Strength", 5, 1, 50);
+            GenerateValuesForDB("MaxHP", 100, 10, 50);
+            GenerateValuesForDB("MaxStamina", 100, 1, 50);
+            GenerateValuesForDB("MaxMana", 100, 10, 50);
+            GenerateValuesForDB("Speed", 5, 1, 50);
+            GenerateValuesForDB("CritChance", 0.1f, 0.1f, 50);
+            GenerateValuesForDB("CritDamage", 1.5f, 0.1f, 50);
+            GenerateValuesForDB("Intellegence", 5, 1, 50);
+            GenerateValuesForDB("Haste", 5, 1, 50);
+        }
+
+        //consIncrease - увеличение стоимости в %
+        //valueIncrease - увеличение значения статистики в еденицах
+        public void GenerateValuesForDB(string skillName, float BaseValue, float valueIncrease, float MaxLvl)
+        {
+            for (int i = 0; i < MaxLvl; i++)
+            {
+                if (i == 0)
+                {
+                    string BaseValues = BaseValue.ToString(CultureInfo.InvariantCulture);
+                    DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroStats VALUES('{skillName}', {i}, {BaseValues})");
+                }
+                else
+                {
+                    float curValue = float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT statvalue FROM HeroStats WHERE skillLvl = {i - 1} AND skillName = '{skillName}'"));
+                    //Тут формулы
+                    float value = curValue + valueIncrease - (i * BaseValue / 400);
+                    //
+                    string valueStr = value.ToString(CultureInfo.InvariantCulture);
+                    DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroStats VALUES('{skillName}', {i}, {valueStr})");
+                }
+            }
+        }
+        public void GenerateLvl(int maxLvl, float costIncreace, float baseCost)
+        {
+            for (int i = 0; i < maxLvl; i++)
+            {
+                if (i == 0)
+                {
+                    DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroLvl VALUES({i}, {baseCost})");
+                }
+                else
+                {
+                    float prevCost = float.Parse(DbHelper.ExecuteQueryWithAnswer($"SELECT UpgradeCost FROM HeroLvl WHERE Lvl = {i-1}"));
+                    DbHelper.ExecuteWithoutAnswer($"INSERT INTO HeroLvl VALUES({i}, {(prevCost + (prevCost * costIncreace / 100)).ToString(CultureInfo.InvariantCulture)})");
+                }
+            }
+        }
+    }
+}

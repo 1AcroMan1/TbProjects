@@ -1,0 +1,385 @@
+#define _CRT_SECURE_NO_DEPRECATE
+#include <iostream>
+#include <stdio.h>
+#include <string>
+//----------- Struct AirRace ------------------------
+struct AirRace
+{
+	int raceNum;
+	std::string pathName;//20 symb
+	std::string planeMark;//6 symb
+	int totalRaceCost;
+	int passageersAmmount;
+	AirRace* next;
+	AirRace* prev;
+};
+//----------- Struct List ------------------------
+struct List
+{
+public:
+	List();
+	~List();
+	void Show();
+	void AddIntoBegin();
+	void AddIntoEnd();
+	void Remove(int index);
+	//void Save();
+	//void Load();
+	void Copy(List&l);
+	AirRace* GetElement(int index);
+	void Clear();
+private:
+	AirRace* Move(int index);
+	bool CheckIndex(int index);
+	int count;
+	AirRace* begin;
+	AirRace* end;
+	FILE* f;
+	int size_race = sizeof(AirRace);
+};
+//Info about race with index in list
+struct SecondMenu : public List
+{
+    SecondMenu(int index);
+	void OnePassageerCost();
+	void AfterRaceCost();
+	void AvgOnePassageerAirport();
+};
+//Fill data for Add voids in List struct
+struct FillData
+{
+	FillData(AirRace* ar, int index, int seek_pos);
+	void PrintRaceNum(AirRace* ar);
+	void PrintPathName(AirRace* ar, bool nameFlag);
+	void PrintPlaneMark(AirRace* ar);
+	void PrintTotalRaceCost(AirRace* ar);
+	void PrintAmmountPassageers(AirRace* ar);
+};
+//----------- Check Index ------------------------
+bool List::CheckIndex(int index)
+{
+	if (index >= 0 || index < count)
+		return true;
+	else
+		return false;
+};
+//----------- Copy ------------------------
+void List::Copy(List& l)
+{
+	Clear();
+	begin = l.begin;
+	end = l.end;
+	AirRace* ar = l.begin;
+	for (int i = 0; i < count; i++)
+	{
+		AddIntoBegin();
+		ar->next;
+	}
+}
+//----------- Same with move, but public and with index check ------------------------	
+AirRace* List::GetElement(int index)
+{
+	if (CheckIndex(index))
+	{
+		AirRace* ar = Move(index);
+		return ar;
+	}
+	return nullptr;
+}
+//----------- return object with index ------------------------
+AirRace* List::Move(int index)
+{
+	if (CheckIndex(index))
+	{
+		AirRace* ar = begin;
+		for (int i = 0; i < index; i++)
+		{
+			ar = ar->next;
+		}
+		return ar;
+	}
+};
+//----------- Constructor ------------------------
+List::List()
+{
+	begin = end = nullptr;
+	count = 0;
+	std::cout << "List created" << std::endl;
+};
+//----------- Destructor ------------------------
+List::~List()
+{
+	std::cout << "List deleted" << std::endl;
+};
+//----------- Add AirRace data into begin ------------------------
+void List::AddIntoBegin()
+{
+	AirRace* ar = new AirRace;
+	FillData(ar, 0, 0);
+	ar->prev = nullptr;
+	ar->next = begin;
+	if (count > 0)
+	{
+		begin->prev = ar;
+		begin = ar;
+	}
+	else
+	{
+		begin = end = ar;
+	}
+	count++;
+};
+//----------- Add AirRace data into the end ------------------------
+void List::AddIntoEnd()
+{
+	AirRace* ar = new AirRace;
+	ar->next = nullptr;
+	ar->prev = end;
+	FillData(ar, 0, 2);
+	if (end != nullptr)
+		end->next = ar;
+	if (count == 0)
+	{
+		begin = end = ar;
+	}
+	else
+	{
+		end = ar;
+	}
+	count++;
+};
+//----------- Show all elements ------------------------
+void List::Show()
+{
+	AirRace* ar = begin;
+	for (int i = 0; i < count; i++)
+	{
+		puts("|raceNum|pathName|planeMark|totalRaceCost|passageersAmmount|");
+		std::cout << "|" << ar->raceNum << "|" << ar->pathName << "|" << ar->planeMark << "|" << ar->totalRaceCost << "|" << ar->passageersAmmount << std::endl;
+	}
+	//rewind(f); //óêàçàòåëü â íà÷àëî ôàéëà
+	//do 
+	//{
+	//	n = fread(&zn, size_znak, 1, f);//÷òåíèå ñòðóêòóðû èç ôàéëà
+	//	if (n < 1) break; //åñëè n<1, òî êîíåö ôàéëà
+	//	std::cout << "|" << zn->id <<"|" << zn->name << "|" << zn->secondName << "|" << zn->zodiac << "|" << zn->birthzday[0] << "." << zn->birthzday[1] << "." << zn->birthzday[2] << std::endl;
+	//} while (1);
+};
+//----------- Delete element with index ------------------------
+void List::Remove(int index)
+{
+	if (count == 0)
+		return;
+	if (!CheckIndex(index))
+		return;
+	AirRace* ar = Move(index);
+	AirRace* _prev = ar->prev;
+	AirRace* _next = ar->next;
+	if (count > 1 && _next != nullptr)
+	{
+		_prev->next = ar->next;
+	}
+	if (count > 1 && _next != nullptr)
+	{
+		_next->prev = _prev;
+	}
+	if (index == 0)
+	{
+		begin = _next;
+	}
+	if (index == count - 1)
+	{
+		end = _prev;
+	}
+	delete(ar);
+	count--;
+}
+//----------- Clear all elements ------------------------
+void List::Clear()
+{
+	for (int i = 0; i < count; i++)
+	{
+		Remove(0);
+	}
+}
+//----------- Fill data ------------------------
+FillData::FillData(AirRace* ar, int index, int seek_pos)
+{
+	//fseek(f, index, seek_pos);
+	PrintRaceNum(ar);
+	PrintPathName(ar,false);
+	PrintPlaneMark(ar);
+	PrintTotalRaceCost(ar);
+	PrintAmmountPassageers(ar);
+};
+void FillData::PrintRaceNum(AirRace* ar)
+{
+	puts("print raceNum");
+	try
+	{
+		std::cin >> ar->raceNum;
+	}
+	catch (...)
+	{
+		std::cout << "You cant use that value. Print it again" << std::endl;
+		PrintRaceNum(ar);
+	}
+};
+void FillData::PrintPathName(AirRace* ar, bool nameFlag)
+{
+	if (nameFlag == true)
+	{
+		puts("print 2 city name (Londom, Sevastopol etc.). Not longer 20 symbols");
+		try
+		{
+			std::string b;
+			std::cin >> b;
+			if (b.size() > 20)
+			{
+				std::cout << "Value is longer than 20 symbols. Print it again" << std::endl;
+				PrintPathName(ar, nameFlag);
+			}
+			ar->pathName += "-";
+			ar->pathName += b;
+		}
+		catch (...)
+		{
+			std::cout << "You cant use that value. Print it again" << std::endl;
+			PrintPathName(ar, nameFlag);
+		}
+	}
+	else
+	{
+		puts("print 1 city name (Londom, Sevastopol etc.). Not longer 20 symbols");
+		try
+		{
+			std::cin >> ar->pathName;
+			if (ar->pathName.size() > 20)
+			{
+				std::cout << "Value is longer than 20 symbols. Print it again" << std::endl;
+				PrintPathName(ar, nameFlag);
+			}
+			nameFlag = true;
+			PrintPathName(ar, nameFlag);
+		}
+		catch (...)
+		{
+			std::cout << "You cant use that value. Print it again" << std::endl;
+			PrintPathName(ar, nameFlag);
+		}
+	}
+};
+void FillData::PrintPlaneMark(AirRace* ar)
+{
+	puts("print plane mark. Not longer 6 symbols");
+	try
+	{
+		std::cin >> ar->planeMark;
+		if (ar->planeMark.size() > 6)
+		{
+			std::cout << "Value is longer than 20 symbols. Print it again" << std::endl;
+			PrintPlaneMark(ar);
+		}
+	}
+	catch (...)
+	{
+		std::cout << "You cant use that value. Print it again" << std::endl;
+		PrintPlaneMark(ar);
+	}
+};
+void FillData::PrintTotalRaceCost(AirRace* ar)
+{
+	puts("print total race cost");
+	try
+	{
+		std::cin >> ar->totalRaceCost;
+	}
+	catch (...)
+	{
+		std::cout << "You cant use that value. Print it again" << std::endl;
+		PrintTotalRaceCost(ar);
+	}
+};
+void FillData::PrintAmmountPassageers(AirRace* ar)
+{
+	puts("print ammount passageers");
+	try
+	{
+		std::cin >> ar->passageersAmmount;
+		puts("Created successful");
+	}
+	catch (...)
+	{
+		std::cout << "You cant use that value. Print it again" << std::endl;
+		PrintAmmountPassageers(ar);
+	}
+};
+//-----------Second menu with info about race with index------------------------
+SecondMenu::SecondMenu(int index)
+{
+	int answer;
+	while (1) {
+		printf("\n1. Add into begin\n"
+			"2. Add after end\n"
+			"3. Check List\n"
+			"4. Delete elem with index\n"
+			"5. Race Information\n"
+			"0. Exit\n");
+		printf("\n Press - >"), scanf("%d", &answer);
+		switch (answer) {
+		case 0:
+			break;
+		}
+	}
+}
+//-----------Client Code (Menu)------------------------
+int ClientCode()
+{
+	setlocale(LC_ALL, "Russian");
+	List l1;
+	int answer;
+	int ind;
+	while (1) {
+		printf("\n1. Добавить запись в начало\n"
+			"2. Добавить запись в конец\n"
+			"3. Просмотр списка\n"
+			"4. Удалить элемент со следующим индексом\n"
+			"5. Информация о рейсе под индексом\n"
+			"0. Выход\n");
+		printf("\n Press - >"), scanf("%d", &answer);
+		switch (answer) {
+		case 0:
+			return 0;
+		case 1: {
+			l1.AddIntoBegin();
+			break;
+		}
+		case 2:
+			l1.AddIntoEnd();
+			break;
+		case 3:
+			l1.Show();
+			break;
+		case 4:
+			std::cout << "Press index. struct with it will be removed" << std::endl;
+			scanf("%d", &ind);
+			l1.Remove(ind);
+		case 5:
+			std::cout << "Press index to see global info about the race with it" << std::endl;
+			try 
+			{
+				int index;
+				std::cin >> index;
+				SecondMenu* sc = new SecondMenu(index);
+			}
+			catch (...)
+			{
+				puts("Index incorrect");
+			}
+		}
+	}
+};
+int main()
+{
+	return ClientCode();
+};

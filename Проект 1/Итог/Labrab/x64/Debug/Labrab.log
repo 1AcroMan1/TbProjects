@@ -1,0 +1,21 @@
+﻿  AddElement.cpp
+  CheckIndex.cpp
+  Correct.cpp
+  Delete.cpp
+  FillDatas.cpp
+C:\Users\1\Desktop\Курсовая\Надо скинуть\Итог\Labrab\FillDatas.cpp(126,55): warning C4244: =: преобразование "int" в "float", возможна потеря данных
+  Found.cpp
+  List.cpp
+  Load.cpp
+C:\Users\1\Desktop\Курсовая\Надо скинуть\Итог\Labrab\Load.cpp(50,43): warning C4244: =: преобразование "float" в "int", возможна потеря данных
+  Move.cpp
+  Organize.cpp
+  PeredelKyrsa4.cpp
+  Reverse.cpp
+  Save.cpp
+  Show.cpp
+  Sort.cpp
+  Создание кода...
+C:\Users\1\Desktop\Курсовая\Надо скинуть\Итог\Labrab\Move.cpp(15): warning C4715: Move: значение возвращается не при всех путях выполнения
+C:\Users\1\Desktop\Курсовая\Надо скинуть\Итог\Labrab\Move.cpp(32): warning C4715: MoveToRace: значение возвращается не при всех путях выполнения
+  Labrab.vcxproj -> C:\Users\1\Desktop\Курсовая\Надо скинуть\Итог\Labrab\x64\Debug\Labrab.exe
